@@ -34,14 +34,14 @@ int main(int argc, char* argv[]){
 
     // Remove the sock path before we begin just in case
     if (system("rm -f SOCKPATH") == -1){
-        std::cerr << "Failed to remove SOCK_PATH: `" << SOCK_PATH << "`, errno: " << errno << ":" << strerror(errno) << std::endl;
+        std::cerr << "Failed to remove SOCK_PATH: `" << SOCK_PATH << "`, errno: " << errno << ": " << strerror(errno) << std::endl;
         return -1;
     }
 
     // Open up a connection 
     mysock = socket(AF_UNIX, SOCK_STREAM, 0);
     if (mysock == -1){
-        std::cerr << "Socket failed to open, errno: " << errno << ":" << strerror(errno) << std::endl;
+        std::cerr << "Socket failed to open, errno: " << errno << ": " << strerror(errno) << std::endl;
         return -1;
     }
     
@@ -54,14 +54,14 @@ int main(int argc, char* argv[]){
     strncpy(my_address.sun_path, SOCK_PATH, sizeof(my_address.sun_path)-1);
 
     if (bind(mysock, (struct sockaddr *)&my_address, sizeof(struct sockaddr)) == -1){
-        std::cerr << "Failed to bind to socket, errno: " << errno << ":" << strerror(errno) << std::endl;
+        std::cerr << "Failed to bind to socket, errno: " << errno << ": " << strerror(errno) << std::endl;
         return -1;
     }
 
     // Finally listen then we will be able to connect
 
     if (listen(mysock, CONNECTION_BACKLOG)){
-        std::cerr << "Failed to listen, errno: " << errno << ":" << strerror(errno) << std::endl;
+        std::cerr << "Failed to listen, errno: " << errno << ": " << strerror(errno) << std::endl;
         return -1;
     }
     
@@ -70,7 +70,7 @@ int main(int argc, char* argv[]){
     their_address_size = sizeof(struct sockaddr);
     theirsock = accept(mysock, (struct sockaddr *)&their_address, &their_address_size);
     if (theirsock == -1){
-        std::cerr << "Failed to accept their sock, errno: " << errno << ":" << strerror(errno) << std::endl;
+        std::cerr << "Failed to accept their sock, errno: " << errno << ": " << strerror(errno) << std::endl;
         return -1;
     } else {
         std::cout << "Master has given Dobby a sock!\n" 
@@ -86,7 +86,7 @@ int main(int argc, char* argv[]){
 
             written_ct = write(theirsock, &buf, read_ct);
             if (written_ct == -1){
-                std::cerr << "Failed to write to their sock, errno: " << errno << ":" << strerror(errno) << std::endl;
+                std::cerr << "Failed to write to their sock, errno: " << errno << ": " << strerror(errno) << std::endl;
                 return -1;
             } else {
                 // So we keep going if we write fewer than the read message
@@ -98,13 +98,13 @@ int main(int argc, char* argv[]){
     }
 
     if (errno != 0){
-        std::cerr << "Failed to read from command line, errno: " << errno << ":" << strerror(errno) << std::endl;
+        std::cerr << "Failed to read from command line, errno: " << errno << ": " << strerror(errno) << std::endl;
         return -1;
     }
     
     // Remove the sock path
     if (remove(SOCK_PATH) == -1){
-        std::cerr << "Failed to remove SOCK_PATH: `" << SOCK_PATH << "`, errno: " << errno << ":" << strerror(errno) << std::endl;
+        std::cerr << "Failed to remove SOCK_PATH: `" << SOCK_PATH << "`, errno: " << errno << ": " << strerror(errno) << std::endl;
         return -1;
     }
 

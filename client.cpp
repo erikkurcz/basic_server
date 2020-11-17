@@ -32,7 +32,7 @@ int main(int argc, char* argv[]){
     // Open up a connection 
     mysock = socket(AF_UNIX, SOCK_STREAM, 0);
     if (mysock == -1){
-        std::cerr << "Socket failed to open, errno: " << strerror(errno) << std::endl;
+        std::cerr << "Socket failed to open, errno: " << errno << ": " << strerror(errno) << std::endl;
         return -1;
     }
     
@@ -43,7 +43,7 @@ int main(int argc, char* argv[]){
     strncpy(their_address.sun_path, SOCK_PATH, sizeof(their_address.sun_path)-1);
 
     if (connect(mysock, (struct sockaddr *)&their_address, sizeof(struct sockaddr)) == -1){
-        std::cerr << "Failed to connect to socket, errno: " << strerror(errno) << std::endl;
+        std::cerr << "Failed to connect to socket, errno: " << errno << ": " << strerror(errno) << std::endl;
         return -1;
     }
 
@@ -51,7 +51,7 @@ int main(int argc, char* argv[]){
     while (read_ct = read(mysock, &buf, BUFFER_SIZE)){
 
         if (read_ct == -1){
-            std::cerr << "Failed to read from socket, errno: " << strerror(errno) << std::endl;
+            std::cerr << "Failed to read from socket, errno: " << errno << ": " << strerror(errno) << std::endl;
             return -1;
         }
         
@@ -59,7 +59,7 @@ int main(int argc, char* argv[]){
         while (read_ct > 0){ 
             written_ct = write(STDOUT_FILENO, &buf, read_ct);
             if (written_ct == -1){
-                std::cerr << "Failed to write to their sock, errno: " << strerror(errno) << std::endl;
+                std::cerr << "Failed to write to their sock, errno: " << errno << ": " << strerror(errno) << std::endl;
                 return -1;
             } else {
                 // So we keep going if we write fewer than the read message

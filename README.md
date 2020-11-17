@@ -4,6 +4,7 @@ This is a simple server for reading off the command line and writing that to who
 
 ### TODO
 * Use `AF_INET6` instead for a more realistic example
+* Handle shutdown / `SIGINT` sent by `Ctrl+c` cleaner so we always clean up socket file on the way down
 * Figure out why the address is always in use even after restart (maybe a soft shutdown?)
     * Theory: personal dir might not work because not open permissions, but `/tmp` dir base works. Unclear why personal dir _doesn't_ work even when `chmod 777` but ok, `/tmp` dir is fine I guess
 
