@@ -17,7 +17,7 @@ g++ server.cpp -o myserver && g++ client.cpp -o myclient && chmod +x myserver &&
 
 Either open 2 terminal windows or a split `tmux` session. 
 
-*Server side:*
+**Server side:**
 ```
 $ ./myserver
 Waiting for connection before accepting data to send...
@@ -27,7 +27,7 @@ hello this is a test!
 and it looks like it is working!
 ```
 
-*Client side:*
+**Client side:**
 ```
 $ ./myserver
 hello this is a test!
