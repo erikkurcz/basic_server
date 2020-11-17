@@ -13,4 +13,24 @@ This is a simple server for reading off the command line and writing that to who
 g++ server.cpp -o myserver && g++ client.cpp -o myclient && chmod +x myserver && chmod +x myclient
 ```
 
+### Running
+
+Either open 2 terminal windows or a split `tmux` session. 
+
+*Server side:*
+```
+$ ./myserver
+Waiting for connection before accepting data to send...
+Master has given Dobby a sock!
+Connected! Begin writing.
+hello this is a test!
+and it looks like it is working!
+```
+
+*Client side:*
+```
+$ ./myserver
+hello this is a test!
+and it looks like it is working!
+```
 
