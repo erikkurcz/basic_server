@@ -11,6 +11,11 @@ This is a simple server for reading off the command line and writing that to who
 
 ```shell
 g++ server.cpp -o myserver && g++ client.cpp -o myclient && chmod +x myserver && chmod +x myclient
+
+OR 
+
+make clean
+make all 
 ```
 
 ### Running
