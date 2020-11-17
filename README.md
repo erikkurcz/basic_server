@@ -27,15 +27,17 @@ Just growin' up in stages
 Livin' life in phases
 Another season changes
 And still, my days are shapeless
+# ctrl-d to terminate input and close server
 ```
 
 **Client side:**
 ```
-$ ./myserver
+$ ./myclient
 Just growin' up in stages
 Livin' life in phases
 Another season changes
 And still, my days are shapeless
+# ctrl-c to kill client
 ```
 
 
