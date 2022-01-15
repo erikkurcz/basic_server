@@ -3,6 +3,7 @@
 #include <iostream>
 #include <string>
 
+#include <netinet/ip.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -43,8 +44,9 @@ int main(int argc, char* argv[]){
     // Connection related
     int mysock(-2);
     int theirsock(-2);
-    struct sockaddr_un my_address;
-    struct sockaddr_un their_address;
+    struct sockaddr_in my_address;
+    struct in_addr my_inet_address;
+    struct sockaddr_in their_address;
     socklen_t their_address_size;
 
     // Remove the sock path before we begin just in case
@@ -57,7 +59,7 @@ int main(int argc, char* argv[]){
 //    }
 
     // Open up a connection
-    mysock = socket(AF_UNIX, SOCK_STREAM, 0);
+    mysock = socket(AF_INET, SOCK_STREAM, 0);
     if (mysock == -1){
         std::cerr << "Socket failed to open, errno: " << errno << ": " << strerror(errno) << std::endl;
         return -1;
@@ -67,11 +69,14 @@ int main(int argc, char* argv[]){
 
     // Make necessary structs
     // Clear first then fill
-    memset(&my_address, 0, sizeof(struct sockaddr));
-    my_address.sun_family = AF_UNIX;
-    strncpy(my_address.sun_path, SOCK_PATH, sizeof(my_address.sun_path)-1);
+    memset(&my_address, 0, sizeof(struct sockaddr_in));
+    my_address.sin_family = AF_INET;
+    my_address.sin_port = htons(SERVER_PORT_NUMBER);
 
-    if (bind(mysock, (struct sockaddr *)&my_address, sizeof(struct sockaddr)) == -1){
+    my_inet_address.s_addr = INADDR_LOOPBACK;
+    my_address.sin_addr = my_inet_address;
+
+    if (bind(mysock, (struct sockaddr_in *)&my_address, sizeof(struct sockaddr_in)) == -1){
         std::cerr << "Failed to bind to socket, errno: " << errno << ": " << strerror(errno) << std::endl;
         return -1;
     }
@@ -85,8 +90,8 @@ int main(int argc, char* argv[]){
 
     // Wait for connection
     std::cout << "Waiting for connection before accepting data to send..." << std::endl;
-    their_address_size = sizeof(struct sockaddr);
-    theirsock = accept(mysock, (struct sockaddr *)&their_address, &their_address_size);
+    their_address_size = sizeof(struct sockaddr_in);
+    theirsock = accept(mysock, (struct sockaddr_in *)&their_address, &their_address_size);
     if (theirsock == -1){
         std::cerr << "Failed to accept their sock, errno: " << errno << ": " << strerror(errno) << std::endl;
         return -1;

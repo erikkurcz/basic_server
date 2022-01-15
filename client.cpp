@@ -3,6 +3,7 @@
 #include <iostream>
 #include <string>
 
+#include <arpa/inet.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -26,11 +27,12 @@ int main(int argc, char* argv[]){
 
     // Connection related
     int mysock(-2);
-    struct sockaddr_un their_address;
+    struct sockaddr_in their_address;
+    struct in_addr their_inet_address;
     socklen_t their_address_size;
 
     // Open up a connection 
-    mysock = socket(AF_UNIX, SOCK_STREAM, 0);
+    mysock = socket(AF_INET, SOCK_STREAM, 0);
     if (mysock == -1){
         std::cerr << "Socket failed to open, errno: " << errno << ": " << strerror(errno) << std::endl;
         return -1;
@@ -38,11 +40,13 @@ int main(int argc, char* argv[]){
     
     // Make necessary structs
     // Clear first then fill
-    memset(&their_address, 0, sizeof(struct sockaddr));
-    their_address.sun_family = AF_UNIX;
-    strncpy(their_address.sun_path, SOCK_PATH, sizeof(their_address.sun_path)-1);
+    memset(&their_address, 0, sizeof(struct sockaddr_in));
+    their_address.sin_family = AF_INET;
+    their_address.sin_port = htons(CLIENT_PORT_NUMBER);
+    their_inet_address.s_addr = INADDR_LOOPBACK;
+    their_address.sin_addr = their_inet_address;
 
-    if (connect(mysock, (struct sockaddr *)&their_address, sizeof(struct sockaddr)) == -1){
+    if (connect(mysock, (struct sockaddr_in *)&their_address, sizeof(struct sockaddr_in)) == -1){
         std::cerr << "Failed to connect to socket, errno: " << errno << ": " << strerror(errno) << std::endl;
         return -1;
     }
