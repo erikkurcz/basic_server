@@ -38,12 +38,16 @@ int main(int argc, char* argv[]){
 
     // Buffer and related reading and writing
     char buf[BUFFER_SIZE];
+    char readbuf[BUFFER_SIZE];
     int read_ct(0);
     int written_ct(0);
 
     // Connection related
     int mysock(-2);
     int theirsock(-2);
+    int sock_count(0); 
+    int connection_arr[CONNECTION_BACKLOG];
+    memset(connection_arr, 0, CONNECTION_BACKLOG);
     struct sockaddr_in my_address;
     struct in_addr my_inet_address;
 
@@ -51,7 +55,7 @@ int main(int argc, char* argv[]){
     socklen_t their_address_size;
 
     // Open up a connection
-    mysock = socket(AF_INET, SOCK_STREAM, 0);
+    mysock = socket(AF_INET, SOCK_STREAM | SOCK_NONBLOCK, 0);
     if (mysock == -1){
         std::cerr << "Socket failed to open, errno: " << errno << ": " << strerror(errno) << std::endl;
         return -1;
@@ -83,55 +87,89 @@ int main(int argc, char* argv[]){
     }
 
     // Wait for connection
+
     std::cout << "Waiting for connection before accepting data to send..." << std::endl;
-
     their_address_size = sizeof(struct sockaddr);
-    theirsock = accept(mysock, (struct sockaddr *)&their_address, &their_address_size);
-    if (theirsock == -1){
-        std::cerr << "Failed to accept their sock, errno: " << errno << ": " << strerror(errno) << std::endl;
-        return -1;
-    } else {
-        std::cout << "Master has given Dobby a sock!\n"
-                  << "Connected! Begin writing." << std::endl;
-    }
+    
+    // keep looking for new connections
+    while (true){
 
-    // Read off command line until Ctrl+C
-    errno = 0;
-    int to_write(0);
-    while (read_ct = read(STDIN_FILENO, &buf, BUFFER_SIZE)){
 
-        // Send ittttt
-        while (read_ct > 0){
+        // Read off command line until Ctrl+C
+        errno = 0;
+        int to_write(0);
+        int local_read_ct(0);
+        int read_rc(0);
+        int idx(0);
+        while (read_ct = read(STDIN_FILENO, &buf, BUFFER_SIZE)){
 
-            // sly fox sleeps between each read
-            if (sleep_seconds > 0){
-                sleep(sleep_seconds);
-            }
+            // accept a new connection
+            connection_arr[sock_count] = accept(mysock, (struct sockaddr *)&their_address, &their_address_size);
 
-            written_ct = write(theirsock, &buf, read_ct);
-
-            if (written_ct == -1){
-                std::cerr << "Failed to write to their sock, errno: " << errno << ": " << strerror(errno) << std::endl;
-                return -1;
+            if (connection_arr[sock_count] == -1){
+                // failed to connect
+                
+                // EAGAIN or EWOULDBLOCK means no waiting connection, we can ignore
+                // But if it's either of those reasons, that's a problem
+                if (errno != EAGAIN && errno != EWOULDBLOCK){
+                    std::cerr << "Failed to accept their sock, errno: " << errno << ": " << strerror(errno) << std::endl;
+                    return -1;
+                }
             } else {
-                // So we keep going if we write fewer than the read message
-                read_ct = read_ct - written_ct;
+                // got a valid connection
+                std::cout << "Master has given Dobby a sock!\n"
+                          << "Connected! Begin writing." << std::endl;
+                sock_count += 1;
             }
+            
+            idx = 0;
+            while (idx < sock_count){
 
+                if (connection_arr[idx] > 0) {
+                    // we have an actual fd here that we can write to, so let's do so
+                    local_read_ct = read_ct;
+                    // Send ittttt
+                    while (local_read_ct > 0){
+
+                        // sly fox sleeps between each read
+                        if (sleep_seconds > 0){
+                            sleep(sleep_seconds);
+                        }
+                        std::cout << "verifying connection is alive @ idx: " << idx << " to fd=" << connection_arr[idx] << std::endl;
+                        read_rc = read(connection_arr[idx],&readbuf,0);
+                        if (read_rc == -1){
+                            std::cout << "connection @ idx " << idx << " to fd=" << connection_arr[idx] << " is invalid: errno: " << errno << std::endl;
+                            return -1;
+                        }
+                        std::cout << "writing to connection @ idx: " << idx << " to fd=" << connection_arr[idx] << std::endl;
+                        errno = 0;
+                        written_ct = write(connection_arr[idx], &buf, local_read_ct);
+                        // write might not return -1 in event of a socket connection lost/closed by the client side, but errno would be set to EAGAIN or EWOULDBLOCK in event it's a non-blocking socket but the write would block
+                        // check for that here and alter the idx position if this is the case
+                        if (errno == EAGAIN || errno == EWOULDBLOCK){
+                            std::cout << "writing to connection @ idx: " << idx << " to fd=" << connection_arr[idx] << " failed to write properly, removing from list" << std::endl;
+                            connection_arr[idx] = 0;
+                        }
+
+                        if (written_ct == -1){
+                            std::cerr << "Failed to write to their sock, errno: " << errno << ": " << strerror(errno) << ", idx=" << idx << ", fd=" << connection_arr[idx] << std::endl;
+                            return -1;
+                        } else {
+                            // So we keep going if we write fewer than the read message
+                            local_read_ct = local_read_ct - written_ct;
+                        }
+                    }
+                }
+                idx++;
+            }
         }
 
-    }
+        if (errno != 0){
+            std::cerr << "Failed to read from command line, errno: " << errno << ": " << strerror(errno) << std::endl;
+            return -1;
+        }
 
-    if (errno != 0){
-        std::cerr << "Failed to read from command line, errno: " << errno << ": " << strerror(errno) << std::endl;
-        return -1;
-    }
-
-    // Remove the sock path
-    if (remove(SOCK_PATH) == -1){
-        std::cerr << "Failed to remove SOCK_PATH: `" << SOCK_PATH << "`, errno: " << errno << ": " << strerror(errno) << std::endl;
-        return -1;
-    }
+    } // end of while(true) loop
 
     return 0;
 }
