@@ -7,8 +7,8 @@ OBJ = client.o server.o
 	$(CC) -c -o $@ $< $(CFLAGS)
 
 all: $(OBJ)
-	$(CC) -o myclient client.o
 	$(CC) -o myserver server.o
+	$(CC) -o myclient client.o
 
 clean: 
 	rm -rf *.o

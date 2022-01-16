@@ -46,17 +46,9 @@ int main(int argc, char* argv[]){
     int theirsock(-2);
     struct sockaddr_in my_address;
     struct in_addr my_inet_address;
+
     struct sockaddr_in their_address;
     socklen_t their_address_size;
-
-    // Remove the sock path before we begin just in case
-    // Don't really care if it fails
-    remove(SOCK_PATH);
-
-//    if (remove(SOCK_PATH) == -1){
-//        std::cerr << "Failed to remove SOCK_PATH: `" << SOCK_PATH << "`, errno: " << errno << ": " << strerror(errno) << std::endl;
-//        return -1;
-//    }
 
     // Open up a connection
     mysock = socket(AF_INET, SOCK_STREAM, 0);
@@ -69,14 +61,16 @@ int main(int argc, char* argv[]){
 
     // Make necessary structs
     // Clear first then fill
-    memset(&my_address, 0, sizeof(struct sockaddr_in));
+    memset(&my_address, 0, sizeof(struct sockaddr));
     my_address.sin_family = AF_INET;
-    my_address.sin_port = htons(SERVER_PORT_NUMBER);
-
-    my_inet_address.s_addr = INADDR_LOOPBACK;
+    my_address.sin_port = htons(PORT_NUMBER);
+    
+    // set INADDR_LOOPBACK for in_addr struct, then assign struct to sockaddr_in struct
+    my_inet_address.s_addr = htonl(INADDR_LOOPBACK);
     my_address.sin_addr = my_inet_address;
-
-    if (bind(mysock, (struct sockaddr_in *)&my_address, sizeof(struct sockaddr_in)) == -1){
+    
+    // finally bind
+    if (bind(mysock, (struct sockaddr*)&my_address, sizeof(struct sockaddr)) == -1){
         std::cerr << "Failed to bind to socket, errno: " << errno << ": " << strerror(errno) << std::endl;
         return -1;
     }
@@ -90,8 +84,9 @@ int main(int argc, char* argv[]){
 
     // Wait for connection
     std::cout << "Waiting for connection before accepting data to send..." << std::endl;
-    their_address_size = sizeof(struct sockaddr_in);
-    theirsock = accept(mysock, (struct sockaddr_in *)&their_address, &their_address_size);
+
+    their_address_size = sizeof(struct sockaddr);
+    theirsock = accept(mysock, (struct sockaddr *)&their_address, &their_address_size);
     if (theirsock == -1){
         std::cerr << "Failed to accept their sock, errno: " << errno << ": " << strerror(errno) << std::endl;
         return -1;
