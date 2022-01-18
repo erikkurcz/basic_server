@@ -1,6 +1,6 @@
 // Sock path to be shared by client and server
-#ifndef SOCK_LOCATION_H
-#define SOCK_LOCATION_H
+#ifndef SOCK_UTILS_H
+#define SOCK_UTILS_H
 
 //const char* SOCK_PATH = "/tmp/TMP_SOCK";
 const int BUFFER_SIZE = 1024;

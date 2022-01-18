@@ -12,7 +12,7 @@
 #include <sys/un.h>
 #include <unistd.h>
 
-#include "sock_location.hh"
+#include "sock_utils.hh"
 
 void usage(){
     printf("Usage: ./myclient PORT\n\nWhere\n\tPORT is the port number to connect on\n");

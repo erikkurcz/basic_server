@@ -16,7 +16,7 @@
 #include <sys/un.h>
 #include <unistd.h>
 
-#include "sock_location.hh"
+#include "sock_utils.hh"
 
 
 void usage(void){
@@ -29,7 +29,6 @@ void handle_sigpipe(int signo){
 
 int main(int argc, char* argv[]){
 
-    // Get sleep time between chars off cmdline
     if (argc != 3 && argc != 4){
         usage();
         exit(1);
@@ -49,11 +48,6 @@ int main(int argc, char* argv[]){
     if (sigaction(SIGPIPE, &sa, NULL) != 0){ 
         std::cerr << "Failed to set signal handler, errno: " << errno << strerror(errno) << std::endl;
         return -1;
-    }
-
-    int sleep_seconds(0);
-    if (argc == 2){
-        sleep_seconds = atoi(argv[1]);
     }
 
     // Basic
@@ -205,11 +199,6 @@ int main(int argc, char* argv[]){
                 // Send ittttt
                 while (local_read_ct > 0){
 
-                    // sly fox sleeps between each read
-                    if (sleep_seconds > 0){
-                        sleep(sleep_seconds);
-                    }
-                    
                     // write to connection
                     if (debug) std::cout << "send to fd=" << *conn_iter << std::endl;
                     errno = 0;
