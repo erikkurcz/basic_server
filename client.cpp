@@ -3,6 +3,7 @@
 #include <iostream>
 #include <string>
 
+#include <arpa/inet.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -11,10 +12,20 @@
 #include <sys/un.h>
 #include <unistd.h>
 
-#include "sock_location.hh"
+#include "sock_utils.hh"
 
+void usage(){
+    printf("Usage: ./myclient PORT\n\nWhere\n\tPORT is the port number to connect on\n");
+}
 
 int main(int argc, char* argv[]){
+
+    if (argc != 2){
+        usage();
+        return 1;
+    }
+
+    const int PORT_NUMBER = atoi(argv[1]);
 
     // Basics
     int BUFFER_SIZE = 1024;
@@ -26,11 +37,12 @@ int main(int argc, char* argv[]){
 
     // Connection related
     int mysock(-2);
-    struct sockaddr_un their_address;
+    struct sockaddr_in their_address;
+    struct in_addr their_inet_address;
     socklen_t their_address_size;
 
     // Open up a connection 
-    mysock = socket(AF_UNIX, SOCK_STREAM, 0);
+    mysock = socket(AF_INET, SOCK_STREAM, 0);
     if (mysock == -1){
         std::cerr << "Socket failed to open, errno: " << errno << ": " << strerror(errno) << std::endl;
         return -1;
@@ -39,24 +51,33 @@ int main(int argc, char* argv[]){
     // Make necessary structs
     // Clear first then fill
     memset(&their_address, 0, sizeof(struct sockaddr));
-    their_address.sun_family = AF_UNIX;
-    strncpy(their_address.sun_path, SOCK_PATH, sizeof(their_address.sun_path)-1);
+    their_address.sin_family = AF_INET;
+    their_address.sin_port = htons(PORT_NUMBER);
+    their_inet_address.s_addr = htonl(INADDR_LOOPBACK);
+    their_address.sin_addr = their_inet_address;
 
-    if (connect(mysock, (struct sockaddr *)&their_address, sizeof(struct sockaddr)) == -1){
+    if (connect(mysock,(struct sockaddr*)&their_address, sizeof(struct sockaddr)) == -1){
         std::cerr << "Failed to connect to socket, errno: " << errno << ": " << strerror(errno) << std::endl;
         return -1;
     }
 
     // Read off the connection foreverrrr
-    while (read_ct = read(mysock, &buf, BUFFER_SIZE)){
+    while (read_ct = recv(mysock, &buf, BUFFER_SIZE, 0)){
 
         if (read_ct == -1){
             std::cerr << "Failed to read from socket, errno: " << errno << ": " << strerror(errno) << std::endl;
             return -1;
         }
-        
+
         // Write it to cmdline
         while (read_ct > 0){ 
+            if (memcmp(&buf, &MAXCONNBUF, MAXCONNBUF_SIZE) == 0){
+                std::cerr << "Server at max connections, retry later" << std::endl;
+                return 1;
+            }
+            if (memcmp(&buf, &PINGBUF, PINGBUF_SIZE) == 0){
+                break; 
+            }
             written_ct = write(STDOUT_FILENO, &buf, read_ct);
             if (written_ct == -1){
                 std::cerr << "Failed to write to their sock, errno: " << errno << ": " << strerror(errno) << std::endl;
