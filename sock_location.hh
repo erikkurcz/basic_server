@@ -2,7 +2,12 @@
 #ifndef SOCK_LOCATION_H
 #define SOCK_LOCATION_H
 
-const char* SOCK_PATH = "/tmp/TMP_SOCK";
-const char MAX_CONNECTIONS_RETRY_FLAG = '`';
-const int MAX_CONNECTIONS_RETRY_FLAG_SIZE = 1; 
+//const char* SOCK_PATH = "/tmp/TMP_SOCK";
+const int BUFFER_SIZE = 1024;
+
+const int MAXCONNBUF_SIZE = 7; 
+const char MAXCONNBUF[MAXCONNBUF_SIZE] = { 'M','A','X','C','O','N','N' };
+
+const int PINGBUF_SIZE = 4;
+const char PINGBUF[PINGBUF_SIZE] = { 'P','I','N','G' };
 #endif 

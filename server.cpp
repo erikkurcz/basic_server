@@ -20,7 +20,7 @@
 
 
 void usage(void){
-    printf("myserver PORT MAX_CONNECTIONS\n\nWhere\n\tPORT is port number to use\n\tMAX_CONNECTIONS is the max number of connections this server will accept.\n");
+    printf("myserver PORT MAX_CONNECTIONS DEBUG\n\nWhere\n\tPORT is port number to use\n\tMAX_CONNECTIONS is the max number of connections this server will accept.\n\tDEBUG is any character to indicate you'd like extra debug logging\n");
 }
 
 void handle_sigpipe(int signo){
@@ -30,13 +30,17 @@ void handle_sigpipe(int signo){
 int main(int argc, char* argv[]){
 
     // Get sleep time between chars off cmdline
-    if (argc != 3){
+    if (argc != 3 && argc != 4){
         usage();
         exit(1);
     }
 
     const int PORT_NUMBER = atoi(argv[1]);
     const int MAX_CONNECTIONS = atoi(argv[2]);
+    bool debug = false;
+    if (argc == 4){
+        debug = true;
+    }
 
     // set signal handler for SIGPIPE only
     struct sigaction sa;
@@ -53,13 +57,10 @@ int main(int argc, char* argv[]){
     }
 
     // Basic
-    int BUFFER_SIZE = 1024;
 
     // Buffer and related reading and writing
     char buf[BUFFER_SIZE];
     char readbuf[BUFFER_SIZE];
-    char errmsgbuf[MAX_CONNECTIONS_RETRY_FLAG_SIZE];
-    errmsgbuf[0] = MAX_CONNECTIONS_RETRY_FLAG;
     int read_ct(0);
     int written_ct(0);
 
@@ -67,7 +68,6 @@ int main(int argc, char* argv[]){
     int mysock(-2);
     int theirsock(-2);
     std::list<int> connection_arr;
-    std::vector<int> conns_to_erase;
     struct sockaddr_in my_address;
     struct in_addr my_inet_address;
 
@@ -108,7 +108,7 @@ int main(int argc, char* argv[]){
 
     // Finally listen then we will be able to connect
 
-    if (listen(mysock, 100)){
+    if (listen(mysock, 10)){
         std::cerr << "Failed to listen, errno: " << errno << ": " << strerror(errno) << std::endl;
         return -1;
     }
@@ -128,20 +128,41 @@ int main(int argc, char* argv[]){
         while (read_ct = read(STDIN_FILENO, &buf, BUFFER_SIZE)){
 
             // Check if we have any dead connections we can remove before we accept new ones
-            // always assume true
+            // always assume there are bad_connections, set it to true
             bad_connections = true;
             while (bad_connections){
                 for (std::list<int>::iterator conn_iter = connection_arr.begin();
                         conn_iter != connection_arr.end();
                         conn_iter++){
-                    if (recv(*conn_iter, &readbuf, 1, MSG_DONTWAIT) == -1){
-                        if (errno == EPIPE || errno == ENOTSOCK || errno == EBADF){
-                            std::cout << "Removing bad connection: " << *conn_iter << std::endl;
-                            connection_arr.erase(conn_iter);
-                            bad_connections = true;
-                            break;
+                    // ping twice because that's what it takes apparently
+
+                    bool is_bad = false;
+                    for (int attempt = 1; attempt <= 2; attempt++){
+                        written_ct = send(*conn_iter, &PINGBUF, PINGBUF_SIZE, MSG_NOSIGNAL);
+
+                        if (written_ct == -1){
+                            // something's wrong 
+                            if (debug) std::cout << "pinging conn fd=" << *conn_iter << ", attempt=" << attempt << " - failure" <<  std::endl;
+
+                            if (errno == EPIPE || errno == ENOTSOCK || errno == EBADF){
+                                // when we have encountered a fd that is no longer a socket, either dropped or never was
+                                if (debug) std::cout << "Removing bad connection: " << *conn_iter << std::endl;
+                                close(*conn_iter);
+                                connection_arr.erase(conn_iter);
+                                is_bad = true;
+                                if (debug) std::cout << "connection_arr.size()=" << connection_arr.size() << std::endl;
+                                break; // connection_arr may have reallocated, retry the loop 
+                            } else {
+                                std::cerr << "Failed to write to their sock, errno: " << errno << ": " << strerror(errno) << " fd=" << *conn_iter << std::endl;
+                                return -1;
+                            }
                         }
+                        if (debug) std::cout << "pinging conn fd=" << *conn_iter << ", attempt=" << attempt << " - success" <<  std::endl;
                     }
+                    if (is_bad){
+                        break;
+                    }
+
                 }
                 bad_connections = false;
             }
@@ -153,7 +174,7 @@ int main(int argc, char* argv[]){
                     // failed to accept, let's see why
                     if (errno == EAGAIN || errno == EWOULDBLOCK){
                         // EAGAIN or EWOULDBLOCK means no waiting connection, we can ignore
-                        std::cout << "No connections waiting" << std::endl;
+                        if (debug) std::cout << "No connections waiting" << std::endl;
                         break;
                     } else {
                         // actual issue at hand, not just no connection available
@@ -161,10 +182,11 @@ int main(int argc, char* argv[]){
                         return -1;
                     }
                 }
-                std::cout << "New connection received" << std::endl;
+                if (debug) std::cout << "New connection received" << std::endl;
+                if (debug) std::cout << "connection_arr.size()=" << connection_arr.size() << std::endl;
                 if (connection_arr.size() >= MAX_CONNECTIONS){
-                    std::cout << "Not adding connection, MAX_CONNECTIONS full" << std::endl;
-                    written_ct = send(newfd, &errmsgbuf, MAX_CONNECTIONS_RETRY_FLAG_SIZE, MSG_NOSIGNAL);
+                    if (debug) std::cout << "Not adding connection, MAX_CONNECTIONS full" << std::endl;
+                    written_ct = send(newfd, &MAXCONNBUF, MAXCONNBUF_SIZE, MSG_NOSIGNAL);
                     close(newfd);
                     break;
                 }
@@ -189,7 +211,7 @@ int main(int argc, char* argv[]){
                     }
                     
                     // write to connection
-                    std::cout << "send to fd=" << *conn_iter << std::endl;
+                    if (debug) std::cout << "send to fd=" << *conn_iter << std::endl;
                     errno = 0;
                     written_ct = send(*conn_iter, &buf, local_read_ct, MSG_NOSIGNAL);
 
@@ -199,7 +221,7 @@ int main(int argc, char* argv[]){
                         if (errno == EPIPE || errno == ENOTSOCK || errno == EBADF){
                             // when we have encountered a fd that is no longer a socket, either dropped or never was
                             written_ct = local_read_ct;
-                            conns_to_erase.push_back(*conn_iter);
+                            close(*conn_iter);
                             break;
                         } else {
                             std::cerr << "Failed to write to their sock, errno: " << errno << ": " << strerror(errno) << " fd=" << *conn_iter << std::endl;
@@ -216,22 +238,7 @@ int main(int argc, char* argv[]){
 
             } // end for loop
 
-            // if we need to erase, do so here
-            while (conns_to_erase.size() > 0){
-                sort(conns_to_erase.begin(), conns_to_erase.end());
-                for (std::list<int>::iterator iter = connection_arr.begin();
-                        iter != connection_arr.end();
-                        iter++){
-                    if (*iter == conns_to_erase.front()){
-                        connection_arr.erase(iter);
-                        conns_to_erase.erase(conns_to_erase.begin());
-                        // connection_arr iter is now invalid, break out
-                        break;
-                    }
-                }
-            }
-            // **** END OF SEND CMD LINE DATA TO CONNECTIONS **** 
-        }
+        } // **** END OF SEND CMD LINE DATA TO CONNECTIONS **** 
 
         if (errno != 0){
             std::cerr << "Failed to read from command line, errno: " << errno << ": " << strerror(errno) << std::endl;

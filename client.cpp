@@ -71,9 +71,12 @@ int main(int argc, char* argv[]){
 
         // Write it to cmdline
         while (read_ct > 0){ 
-            if (strncmp(&buf[0], &MAX_CONNECTIONS_RETRY_FLAG, 1) == 0){
+            if (memcmp(&buf, &MAXCONNBUF, MAXCONNBUF_SIZE) == 0){
                 std::cerr << "Server at max connections, retry later" << std::endl;
                 return 1;
+            }
+            if (memcmp(&buf, &PINGBUF, PINGBUF_SIZE) == 0){
+                break; 
             }
             written_ct = write(STDOUT_FILENO, &buf, read_ct);
             if (written_ct == -1){
