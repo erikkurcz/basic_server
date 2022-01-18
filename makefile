@@ -16,3 +16,10 @@ debug: $(OBJ)
 
 clean: 
 	rm -rf *.o
+
+d: $(OBJ)
+	$(CC) -g -o myserver server.o
+	$(CC) -g -o myclient client.o
+
+c: 
+	rm -rf *.o
