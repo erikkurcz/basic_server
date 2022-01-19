@@ -54,6 +54,7 @@ int main(int argc, char* argv[]){
 
     // Buffer and related reading and writing
     char buf[BUFFER_SIZE];
+    char client_data_buf[BUFFER_SIZE];
     char readbuf[BUFFER_SIZE];
     int read_ct(0);
     int written_ct(0);
@@ -119,6 +120,8 @@ int main(int argc, char* argv[]){
         int local_read_ct(0);
         int read_rc(0);
         bool bad_connections = true;
+
+        // **** READ STDIN LOOP **** 
         while (read_ct = read(STDIN_FILENO, &buf, BUFFER_SIZE)){
 
             // Check if we have any dead connections we can remove before we accept new ones
@@ -136,8 +139,7 @@ int main(int argc, char* argv[]){
 
                         if (written_ct == -1){
                             // something's wrong 
-                            if (debug) std::cout << "pinging conn fd=" << *conn_iter << ", attempt=" << attempt << " - failure" <<  std::endl;
-
+                            if (debug) std::cout << "pinging conn fd=" << *conn_iter << ", attempt=" << attempt << " - failure" <<  std::endl; 
                             if (errno == EPIPE || errno == ENOTSOCK || errno == EBADF){
                                 // when we have encountered a fd that is no longer a socket, either dropped or never was
                                 if (debug) std::cout << "Removing bad connection: " << *conn_iter << std::endl;
@@ -189,15 +191,41 @@ int main(int argc, char* argv[]){
             }
             // **** END OF LOOK FOR NEW CONNECTIONS **** 
 
-            // **** SEND CMD LINE DATA TO CONNECTIONS **** 
+            // **** FOR LOOP ITER ALL CONNECTIONS FOR SENDING CMD LINE DATA **** 
             // for loop for sending what we ready off command line
             for (std::list<int>::iterator conn_iter = connection_arr.begin();
                     conn_iter != connection_arr.end();
                     conn_iter++){
 
+                // ***** RECEIVE DATA FROM CLIENT *****
+                // check if the client has said anything to us
+                int hasdata_rc = has_data(*conn_iter, debug);
+
+                if (hasdata_rc != 0){
+
+                    int read_rc = read(*conn_iter, &client_data_buf, BUFFER_SIZE);
+                    if (debug) std::cout << "reading client data, bytes available: " << read_rc << std::endl;
+                    int write_client_data_rc;
+                    if (read_rc){
+
+                        while (read_rc > 0){
+                            std::cout << "Msg from client at fd=" << *conn_iter << ": " << std::endl;
+                            write_client_data_rc = write(STDOUT_FILENO, &client_data_buf, read_rc);
+
+                            if (write_client_data_rc == -1){
+                                std::cerr << "Failed to write client_data_buf to STDOUT_FILENO, errno: " << errno << ": " << strerror(errno) << " read from fd=" << *conn_iter << std::endl;
+                                return -1;
+                            }
+                            read_rc = read_rc - write_client_data_rc;
+                        }
+                    }
+                }
+                // ***** END RECEIVE DATA FROM CLIENT ***** 
+
                 local_read_ct = read_ct;
                 // Send ittttt
-                while (local_read_ct > 0){
+                // **** SEND DATA TO SINGLE CONNECTION **** 
+                while (local_read_ct > 0){ 
 
                     // write to connection
                     if (debug) std::cout << "send to fd=" << *conn_iter << std::endl;
@@ -223,11 +251,11 @@ int main(int argc, char* argv[]){
                         local_read_ct = local_read_ct - written_ct;
                     }
 
-                }
+                } // **** END SEND DATA TO SINGLE CONNECTION ****
 
-            } // end for loop
+            } // **** END FOR LOOP ITER ALL CONNECTIONS FOR SENDING CMD LINE DATA **** 
 
-        } // **** END OF SEND CMD LINE DATA TO CONNECTIONS **** 
+        } // **** END READ STDIN LOOP **** 
 
         if (errno != 0){
             std::cerr << "Failed to read from command line, errno: " << errno << ": " << strerror(errno) << std::endl;
