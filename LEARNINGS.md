@@ -18,5 +18,7 @@
 * learned about struct sockaddr and how the derivative forms of it for different protocols use the same struct and cast it in the bind call (it's weird, but it works)
 * learned about one-line if statements for simple checks and debug logging (without actually using a real log manager)
 * learned about having ot use htons() and htonl() for sin_port and sin_addr with a sockaddr struct to get things to network order
-
+* learned select() is really specific to its man page, e.g. the nfds argument must be the *highest numbered fd plus one* for this to work properly
+  * also learned timeout timeval args must *both* be zero to have rational behavior - or a third case of timeout must be handled in the code, which can otherwise cause spurious errors if you're moving slower than the timeout itself. So the timeout completes before you enter data, and therefore your code reacts differently to it. 
+  * learned bidirectional SOCK\_STREAM does in fact work, so that's cool!
 
