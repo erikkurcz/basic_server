@@ -18,6 +18,7 @@ void usage(){
     printf("Usage: ./myclient PORT\n\nWhere\n\tPORT is the port number to connect on\n");
 }
 
+
 int main(int argc, char* argv[]){
 
     if (argc != 2){
@@ -32,6 +33,7 @@ int main(int argc, char* argv[]){
     
     // Buffer and related reading and writing
     char buf[BUFFER_SIZE];
+    char udata_buf[BUFFER_SIZE];
     int read_ct(0);
     int written_ct(0);
 
@@ -40,6 +42,12 @@ int main(int argc, char* argv[]){
     struct sockaddr_in their_address;
     struct in_addr their_inet_address;
     socklen_t their_address_size;
+    
+    // for working with user data
+    int udata_read_ct = 0;
+    int write_to_server_ct = 0;
+    int hasdata_rc = 0;
+
 
     // Open up a connection 
     mysock = socket(AF_INET, SOCK_STREAM, 0);
@@ -86,10 +94,39 @@ int main(int argc, char* argv[]){
                 // So we keep going if we write fewer than the read message
                 read_ct = read_ct - written_ct;
             }
-
         }
 
-    }
-    
+        // If user has given data on STDIN to write to server
+        // then let's get it and write it over
+
+        udata_read_ct = 0;
+        write_to_server_ct = 0;
+        hasdata_rc = has_data(STDIN_FILENO);
+
+        if (hasdata_rc == -1){
+            std::cerr << "Error while checking if has_data on fd(" << STDIN_FILENO << ")" << std::endl;
+            return -1; 
+        }
+
+        if (hasdata_rc != 0) {
+            udata_read_ct = read(STDIN_FILENO, &udata_buf, BUFFER_SIZE);
+            if (udata_read_ct == -1) {
+                std::cerr << "Failed to read from STDIN_FILENO into &udata_buf, errno: " << errno << ": " << strerror(errno) << std::endl;
+                return -1;
+            }
+            
+            // loop to write all of it
+            while (udata_read_ct > 0){
+                write_to_server_ct = write(mysock, &udata_buf, udata_read_ct);
+                if (write_to_server_ct == -1){
+                    std::cerr << "Failed to write user data to their sock, errno: " << errno << ": " << strerror(errno) << std::endl;
+                    return -1;
+                } else {
+                    udata_read_ct = udata_read_ct - write_to_server_ct;
+                }
+            }
+        } // if block for reading from stdin
+
+    } // overall read-off-socket loop
     return 0;
-}
+} // main
